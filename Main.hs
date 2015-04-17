@@ -1,5 +1,7 @@
 module Main where
 
+import System.IO
+
 eval :: String -> String
 eval = id
 
