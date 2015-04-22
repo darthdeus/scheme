@@ -1,9 +1,8 @@
 module Main where
 
 import System.IO
-
-eval :: String -> String
-eval = id
+import Scheme.Parser
+import Scheme.Evaluator
 
 repl :: IO ()
 repl = do
