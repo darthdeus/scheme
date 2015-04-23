@@ -6,5 +6,5 @@ along with a fully functioning REPL.
 ## TODO
 
 - [ ] Tokenizer
-- [ ] Parser
+- [ ] Parser, see http://norvig.com/lispy.html
 - [ ] Eval
