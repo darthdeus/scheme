@@ -4,6 +4,7 @@ import Control.Applicative hiding (many, (<|>))
 import Control.Monad
 import qualified Data.Char as C
 
+-- Zalozeno na https://www.cs.nott.ac.uk/~gmh/monparsing.pdf
 data Parser a = Parser (String -> [(a, String)])
 
 runParser :: Parser a -> (String -> [(a, String)])
