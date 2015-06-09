@@ -6,11 +6,6 @@ import Control.Monad.State
 
 type Env = [(String, AST)]
 
--- data Form = Symbol String
---           | List [Form]
---           deriving (Show, Eq)
-
-
 -- (define factorial
 --           (lambda (n)
 --              (if (= n 0)
