@@ -93,9 +93,9 @@ eval (List (x:xs)) = do
 
   case h of
     (Lambda args body) -> do
-        --   when (length args) /= (length xs) $ do
-        --     fail "argument counts don't match"
-
+          -- TODO - check argument length with function param count
+          --   when (length args) /= (length xs) $ do
+          --     fail "argument counts don't match"
           let functionEnv = zip args evaled
           env <- get
 
