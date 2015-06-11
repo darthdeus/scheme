@@ -1,1 +1,3 @@
-module Scheme.Evaluator where
+module Scheme.Evaluator (eval) where
+
+eval = undefined
