@@ -8,3 +8,5 @@ along with a fully functioning REPL.
 - [ ] Tokenizer
 - [ ] Parser, see http://norvig.com/lispy.html
 - [ ] Eval
+- [ ] stdlib
+- [ ] REPL
