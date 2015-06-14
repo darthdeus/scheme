@@ -1,12 +1,16 @@
 -- Zakladni parser kombinatory, implementovano na zaklade
--- clanku `Monadic Parsing in Haskell` https://www.cs.nott.ac.uk/~gmh/pearl.pdf
+-- clanku `Monadic Parsing in Haskell` https://www.cs.nott.ac.uk/~gmh/pearl.pdf,
+-- s drobnym vylepsenim, kde v puvodnim clanku se pouzivalo nedeterministicke
+-- `[(a, String)]` pro reseni chybovych chlasek. Tento parser pouziva misto toho
+-- `Either String (a, String)`, aby bylo mozne s chybou dale prenaset i proc parsovani
+-- selhalo.
 module Scheme.Parser.Combinators where
 
 import Control.Applicative as A hiding (many, (<|>))
 import Control.Monad
 
 data Parser a = Parser (String -> ParseResult a)
-type ParseResult a = Either String [(a, String)]
+type ParseResult a = Either String (a, String)
 
 runParser :: Parser a -> (String -> ParseResult a)
 runParser (Parser p) = p
@@ -14,7 +18,7 @@ runParser (Parser p) = p
 anyChar :: Parser Char
 anyChar = Parser (\s -> case s of
                      "" -> Left "expected a character, empty string instead"
-                     (x:xs) -> Right [(x, xs)])
+                     (x:xs) -> Right (x, xs))
 
 failed :: String -> Parser a
 failed why = Parser (\_ -> Left why)
@@ -23,19 +27,19 @@ instance Functor Parser where
   fmap f (Parser p) = Parser (\x -> do
                                  case p x of
                                    Left err -> Left err
-                                   Right ok -> Right $ map (\(a,b) -> (f a, b)) ok)
+                                   Right (a,b) -> Right (f a, b))
 
 instance Applicative Parser where
-  pure x = Parser (\s -> Right [(x, s)])
+  pure x = Parser (\s -> Right (x, s))
   (Parser f) <*> (Parser g) = Parser (\x -> do -- pozor, tento `do` je v Either monade
-                                         [(a, s)] <- f x
-                                         [(b, t)] <- g s
-                                         return $ [(a b, t)])
+                                         (a, s) <- f x
+                                         (b, t) <- g s
+                                         return $ (a b, t))
 
 instance Monad Parser where
   return = pure
   (Parser p) >>= f = Parser (\x -> do -- pozor, tento `do` je v Either monade
-                                [(a, s)] <- p x
+                                (a, s) <- p x
                                 let (Parser q) = f a
                                 q s)
 
@@ -43,18 +47,18 @@ parse :: Parser a -> String -> ParseResult a
 parse (Parser p) = p
 
 instance MonadPlus Parser where
-  mzero = Parser (\_ -> [])
-  mplus p q = Parser (\x -> parse p x ++ parse q x)
+  mzero = Parser (\_ -> Left "mzero: parsing failed")
+  mplus p q = Parser (\x ->
+                       case parse p x of
+                         Right a -> Right a
+                         Left err -> parse q x)
+
 
 (<|>) :: Parser a -> Parser a -> Parser a
-p <|> q = Parser (\s -> case parse (p `mplus` q) s of
-                     [] -> []
-                     (x:_) -> [x])
+(<|>) = mplus
 
-run :: String -> Parser a -> Maybe a
-run s (Parser f) = case f s of
-  [] -> Nothing
-  ((x, _):_) -> Just x
+run :: String -> Parser a -> ParseResult a
+run s (Parser f) = f s
 
 satisfies :: (Char -> Bool) -> Parser Char
 satisfies p = do
@@ -62,7 +66,7 @@ satisfies p = do
 
   if p c
     then return c
-    else failed
+    else failed $ "unexpected char: " ++ [c]
 
 char :: Char -> Parser Char
 char c = satisfies (c ==)
@@ -108,9 +112,10 @@ bracket left right middle = do
   return m
 
 oneOf :: String -> Parser Char
-oneOf [] = failed
-oneOf (x:xs) = do
-  char x <|> oneOf xs
+oneOf s = oneOfAcc s s
+  where oneOfAcc what [] = failed $ "none of the characters matched: " ++ what
+        oneOfAcc what (x:xs) = do
+          char x <|> oneOfAcc what xs
 
 digit :: Parser Int
 digit = do

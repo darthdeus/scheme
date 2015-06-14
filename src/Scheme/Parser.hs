@@ -26,7 +26,7 @@ parseIf = do
     [cond,true,false] ->
       return $ If cond true false
 
-    _ -> failed
+    _ -> failed $ "the `if` form expects exactly three branches, found: " ++ show values
 
 whitespace :: Parser String
 whitespace = many $ oneOf " \n\t\r"
@@ -39,9 +39,9 @@ specialForm name = do
     ((Atom x):xs) -> do
       if x == name
         then return xs
-        else failed
+        else failed $ "expected special form `" ++ name ++ "`, found `" ++ x ++ "` instead"
 
-    _ -> failed
+    _ -> failed $ "expected special form, found: " ++ show values
 
 parseAtom :: Parser AST
 parseAtom = fmap Atom $ many1 $ oneOf "abcdefghijklmnopqrstuvwxyz!@#$%^&*_+-=[]{}\\|';:\",./<>?"
