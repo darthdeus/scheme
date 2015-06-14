@@ -51,8 +51,10 @@ instance MonadPlus Parser where
 (<|>) :: Parser a -> Parser a -> Parser a
 (<|>) = mplus
 
-run :: String -> Parser a -> ParseResult a
-run s (Parser f) = f s
+run :: String -> Parser a -> a
+run s (Parser f) = case f s of
+  Left err -> error err
+  Right (a, _) -> a
 
 anyChar :: Parser Char
 anyChar = Parser (\s -> case s of

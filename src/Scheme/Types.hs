@@ -6,35 +6,64 @@ import Control.Monad.State
 type Env = [(String, AST)]
 
 type Name = String
-type Args = [AST]
 type Body = AST
 
 data AST = ASTList [AST]
-         | ASTLambda Args Body
+         | ASTLambda [AST] Body
          | ASTNumber Int
          | ASTAtom String
          deriving (Show, Eq)
 
-data Lambda = Lambda Args Body
+data Lambda = Lambda [String] Body
+
+-- -- Testovaci implementace factorialu, ekvivalentni nasledujicimu kodu
+-- --
+-- -- (define factorial
+-- --           (lambda (n)
+-- --              (if (= n 0)
+-- --                1
+-- --                (* n (factorial (- n 1)))))
+-- --
+-- --
+-- -- TODO - tohle extrahovat jinam
+-- -- (factorial 5)
+-- -- ((lambda (x) (+ 1 x)) 3)
+-- fac :: AST
+-- fac = Lambda ["n"]
+--       (If (List [Atom "=", Atom "n", Number 0])
+--        (Number 1)
+--        (List [Atom "*", Atom "n",
+--               (List [Atom "factorial",
+--                      List [Atom "-", Atom "n", Number 1]])]))
 
 emptyEnv :: Env
 emptyEnv = []
 
+-- Vyhodnoti zdrojovy kod ve formatu AST
 evalSource :: [AST] -> [AST]
-evalSource source = evalState (evalWithEnv source) emptyEnv
+evalSource source = evalState (evalSourceWithEnv source) emptyEnv
 
-evalWithEnv :: [AST] -> State Env [AST]
-evalWithEnv [] = return []
-evalWithEnv (a:as) = do
-  x <- eval a
-  xs <- evalWithEnv as
-
-  return (x:xs)
+evalSourceWithEnv :: [AST] -> State Env [AST]
+evalSourceWithEnv as = mapM eval as
 
 -- Vse krome listu se vyhodnocuje samo na sebe (cisla a atomy).
 eval :: AST -> State Env AST
 eval (ASTList list) = evalList list
+eval (ASTAtom name) = do
+  env <- get
+
+  case lookup name env of
+    Just value -> return value
+    Nothing -> return $ ASTAtom name
+
+eval (ASTNumber n) = return $ ASTNumber n
 eval x = return x
+
+evalWithEnv :: AST -> Env -> AST
+evalWithEnv x env = evalState (eval x) env
+
+emptyEval :: AST -> AST
+emptyEval x = evalState (eval x) emptyEnv
 
 evalList :: [AST] -> State Env AST
 evalList [] = error "Empty list can't be evaluated as a function"
@@ -58,19 +87,26 @@ evalList (a:as) = do
       then evalSpecialForm name as
       else error $ "Atom `" ++ name ++ "` is not a function (neither builtin nor user defined.)"
 
-    ASTList [(ASTAtom "lambda"),(ASTList args),body] -> apply (Lambda args body) as
+    -- TODO - fix args vs params
+    ASTList ((ASTLambda params body):args) -> apply (Lambda (map unwrapAtom params) body) args
 
     _ -> error $ "Evaluation error, unexpected value in evalList: " ++ show x
 
 evalSpecialForm :: Name -> [AST] -> State Env AST
 evalSpecialForm = undefined
 
+unwrapAtom :: AST -> String
+unwrapAtom (ASTAtom name) = name
+unwrapAtom err = error $ "Implementation error, expecting atom, found " ++ show err
+
 apply :: Lambda -> [AST] -> State Env AST
-apply (Lambda args body) values = do
-  params <- mapM eval values
+apply (Lambda params body) values = do
+  args <- mapM eval values
 
-  undefined
+  let lambdaEnv = zip params args
 
+  env <- get
+  return $ evalState (eval body) (lambdaEnv ++ env)
 
 isSpecialForm :: String -> Bool
 isSpecialForm "define" = True
@@ -164,24 +200,3 @@ isSpecialForm _ = False
 --   ("-", numMinus),
 --   ("*", numMult),
 --   ("=", numEq)]
-
-
--- -- Testovaci implementace factorialu, ekvivalentni nasledujicimu kodu
--- --
--- -- (define factorial
--- --           (lambda (n)
--- --              (if (= n 0)
--- --                1
--- --                (* n (factorial (- n 1)))))
--- --
--- --
--- -- TODO - tohle extrahovat jinam
--- -- (factorial 5)
--- -- ((lambda (x) (+ 1 x)) 3)
--- fac :: AST
--- fac = Lambda ["n"]
---       (If (List [Atom "=", Atom "n", Number 0])
---        (Number 1)
---        (List [Atom "*", Atom "n",
---               (List [Atom "factorial",
---                      List [Atom "-", Atom "n", Number 1]])]))
