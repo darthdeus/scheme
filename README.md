@@ -113,7 +113,7 @@ Implementace instance monády je poté prakticky triviální
                                     let (Parser q) = f a
                                     q s)
 
-kde `return` je vytvoří parser, který pro každý vstup rovnou vrací zadanou hodnotu, a nic ze vstupu nespotřebuje, a `bind` (`>>=`) vytvoří parser, který umožnuje parsovat v závislosti na kontextu. Nejprve se spustí první parser, z jehož výsledné hodnoty se vytvoří parser nový, který se poté aplikuje na zbytek stringu z aplikace prvního parseru.
+kde `return` vytvoří parser, který pro každý vstup rovnou vrací zadanou hodnotu, a nic ze vstupu nespotřebuje, a `bind` (`>>=`) vytvoří parser, který umožnuje parsovat v závislosti na kontextu. Nejprve se spustí první parser, z jehož výsledné hodnoty se vytvoří parser nový, který se poté aplikuje na zbytek stringu z aplikace prvního parseru.
 
 Zde je např. parser `bracket`, který parsuje výraz uvnitř závorek:
 
@@ -124,7 +124,7 @@ Zde je např. parser `bracket`, který parsuje výraz uvnitř závorek:
       char right
       return m
 
-Síla monadického parsování je tedy převážně v jednoduché kompozici parserů dohromady, kde zpravidla stačí jenom popsat jak má vypadat výsledný výraz (za pomocí jiných parserů.), a implementace monády se už postará o to, aby se všechny parametry předaly tak jak mají.
+Síla monadického parsování je tedy převážně v jednoduché kompozici parserů dohromady, kde zpravidla stačí jenom popsat jak má vypadat výsledný výraz (za pomocí jiných parserů), a implementace monády se už postará o to, aby se všechny parametry předaly tak jak mají.
 
 Parser pro konkrétní výraz vytvoříme jednoduše, např. pokud bychom chtěli řetězec `"(123)"` parsovat jako _číslo uvnitř závorek_, stačí použít následující parametry
 
