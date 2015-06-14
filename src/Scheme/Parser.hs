@@ -6,17 +6,30 @@ import Scheme.Parser.Combinators
 
 -- Parser pro jeden prvek AST v Scheme.
 parseAST :: Parser AST
-parseAST = parseDefine <|>
-           parseIf <|>
-           parseLet <|>
-           parseLambda <|>
-           parseList <|>
+parseAST = parseList <|>
            parseNumber <|>
            parseAtom
 
 parseDefine = fmap Atom $ string "TODO-define"
-parseLambda = fmap Atom $ string "TODO-lambda"
-parseLet = fmap Atom $ string "TOOD-let"
+
+parseLambda :: Parser AST
+parseLambda = do
+  values <- specialForm "lambda"
+
+  case values of
+    [bindings, body] -> return $ Lambda bindings body
+
+    _ -> failed $ "the `lambda` form expects exactly two values, found: " ++ show values
+
+
+parseLet :: Parser AST
+parseLet = do
+  values <- specialForm "let"
+
+  case values of
+    [bindings, body] -> return $ Let bindings body
+
+    _ -> failed $ "the `let` form expects exactly two values, found: " ++ show values
 
 parseIf :: Parser AST
 parseIf = do
