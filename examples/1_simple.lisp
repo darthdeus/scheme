@@ -1,3 +1,3 @@
 (define x 3)
-(define y 4)
+(define y (+ x 1))
 (+ x y)

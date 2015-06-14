@@ -14,8 +14,8 @@ main = do
   args <- getArgs
 
   case args of
-    ["-i"] -> lispRepl False
-    ["-i", "-v"] -> lispRepl True
+    ["-i"] -> lispRepl emptyEnv False
+    ["-i", "-v"] -> lispRepl emptyEnv True
 
     (file:rest) -> do
       ok <- doesFileExist file
@@ -35,7 +35,7 @@ interpretFile :: FilePath -> Bool -> IO ()
 interpretFile path verbose = do
   content <- readFile path
 
-  let evaluated = evalSource $ parseLisp content
+  let evaluated = evalSource emptyEnv $ parseLisp content
 
   if verbose
     then print evaluated

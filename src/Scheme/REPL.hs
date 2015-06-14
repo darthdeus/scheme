@@ -3,19 +3,20 @@ module Scheme.REPL where
 import Data.List
 import System.IO
 
+import Scheme.Types
 import Scheme.Parser
 import Scheme.Evaluator
 import Scheme.Printer
 
-lispRepl :: Bool -> IO ()
-lispRepl verbose = do
+lispRepl :: Env -> Bool -> IO ()
+lispRepl env verbose = do
   putStr "> "
   hFlush stdout
 
   line <- getLine
   let ast = parseLisp line
 
-  let evaluated = evalSource ast
+  let evaluated@(Evaluated _ newEnv) = evalSource env ast
 
   if verbose
     then print evaluated
@@ -23,4 +24,4 @@ lispRepl verbose = do
 
   hFlush stdout
 
-  lispRepl verbose
+  lispRepl newEnv verbose
