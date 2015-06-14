@@ -14,5 +14,19 @@ parseAST = parseDefine <|>
            parseNumber <|>
            parseAtom
 
+parseDefine = fmap Atom $ string "TODO-define"
+parseLambda = fmap Atom $ string "TODO-lambda"
+parseLet = fmap Atom $ string "TOOD-let"
+parseIf = fmap Atom $ string "TOOD-if"
+
+whitespace :: Parser String
+whitespace = many $ oneOf " \n\t\r"
+
 parseAtom :: Parser AST
-parseAtom = oneOf "abcdefghijklmnopqrstuvwxyz-_#@*"
+parseAtom = fmap Atom $ many1 $ oneOf "abcdefghijklmnopqrstuvwxyz!@#$%^&*_+-=[]{}\\|';:\",./<>?"
+
+parseNumber :: Parser AST
+parseNumber = fmap Number number
+
+parseList :: Parser AST
+parseList = fmap List $ bracket '(' ')' (sepby parseAST whitespace)
