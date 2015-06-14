@@ -6,14 +6,15 @@ import Scheme.Parser.Combinators
 
 
 parseLisp :: String -> [AST]
-parseLisp s = run s $ many1 parseAST
+parseLisp s = run s $ many1 (whitespace >> parseAST)
 
 -- Parser pro jeden prvek AST v Scheme.
 parseAST :: Parser AST
-parseAST = parseLambda <|>
-           parseList <|>
-           parseNumber <|>
-           parseAtom
+parseAST = whitespace >>
+           (parseLambda <|>
+            parseList <|>
+            parseNumber <|>
+            parseAtom)
 
 whitespace :: Parser String
 whitespace = many $ oneOf " \n\t\r"
