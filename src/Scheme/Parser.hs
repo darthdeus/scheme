@@ -1,8 +1,7 @@
 module Scheme.Parser where
 
-import Control.Applicative hiding (many, (<|>))
+import Control.Applicative hiding (many)
 import Control.Monad
-import qualified Data.Char as C
 
 -- Zalozeno na https://www.cs.nott.ac.uk/~gmh/monparsing.pdf
 data Parser a = Parser (String -> [(a, String)])
@@ -37,7 +36,12 @@ instance Monad Parser where
                                 let (Parser q) = f a
                                 q s)
 
+parse :: Parser a -> String -> [(a, String)]
 parse (Parser p) = p
+
+instance Alternative Parser where
+  empty = mzero
+  (<|>) = mplus
 
 instance MonadPlus Parser where
   mzero = Parser (\_ -> [])
@@ -46,7 +50,7 @@ instance MonadPlus Parser where
 (+++) :: Parser a -> Parser a -> Parser a
 p +++ q = Parser (\s -> case parse (p `mplus` q) s of
                      [] -> []
-                     (x:xs) -> [x])
+                     (x:_) -> [x])
 
 run :: String -> Parser a -> Maybe a
 run s (Parser f) = case f s of
