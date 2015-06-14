@@ -10,106 +10,161 @@ type Name = String
 type Args = [String]
 type Body = [AST]
 
--- Reprezentuje jeden prvek AST v Scheme. Cely zdrojovy kod
--- je potom reprezentovan jako [AST].
-data AST = Define String AST
-         | If AST AST AST
-         | Let AST AST
-         | Lambda Args AST
-         | List [AST]
-         | Number Int
-         | Atom String
+data AST = ASTList [AST]
+         | ASTNumber Int
+         | ASTAtom String
          deriving (Show, Eq)
 
-numberOp :: (Int -> Int -> AST) -> AST -> AST -> State Env AST
-numberOp f x y = do
-  xx <- eval x
-  yy <- eval y
+data Lambda = Lambda Args Body
 
-  case (xx, yy) of
-    (Number xv, Number yv) ->
-      return $ f xv yv
+emptyEnv :: Env
+emptyEnv = []
 
-    (xv, yv) ->
-        error $ "evaluating non-numbers " ++ show xv ++ " and " ++ show yv
+evalSource :: [AST] -> [AST]
+evalSource source = evalState (evalWithEnv source) emptyEnv
 
+evalWithEnv :: [AST] -> State Env [AST]
+evalWithEnv [] = return []
+evalWithEnv (a:as) = do
+  x <- eval a
+  xs <- evalWithEnv as
 
-numEq :: AST -> AST -> State Env AST
-numEq = numberOp (\x y ->
-                        if x == y
-                        then Atom "#t"
-                        else Atom "#f")
+  return (x:xs)
 
-
-
-numPlus, numMinus, numMult :: AST -> AST -> State Env AST
-numPlus = numberOp (\x y -> Number $ x + y)
-numMinus = numberOp (\x y -> Number $ x - y)
-numMult = numberOp (\x y -> Number $ x * y)
-
-primitives :: [(String, AST -> AST -> State Env AST)]
-primitives = [
-  ("+", numPlus),
-  ("-", numMinus),
-  ("*", numMult),
-  ("=", numEq)]
-
-
--- Testovaci implementace factorialu, ekvivalentni nasledujicimu kodu
---
--- (define factorial
---           (lambda (n)
---              (if (= n 0)
---                1
---                (* n (factorial (- n 1)))))
---
---
--- TODO - tohle extrahovat jinam
--- (factorial 5)
--- ((lambda (x) (+ 1 x)) 3)
-fac :: AST
-fac = Lambda ["n"]
-      (If (List [Atom "=", Atom "n", Number 0])
-       (Number 1)
-       (List [Atom "*", Atom "n",
-              (List [Atom "factorial",
-                     List [Atom "-", Atom "n", Number 1]])]))
-
+-- Vse krome listu se vyhodnocuje samo na sebe (cisla a atomy).
 eval :: AST -> State Env AST
-eval (Atom s) = do
-  env <- get
-  case lookup s env of
-    Just x -> return x
-    Nothing -> return $ Atom s
+eval (ASTList list) = evalList list
+eval x = return x
 
-eval (If cond true false) = do
-  env <- get
-  if evalState (eval cond) env == (Atom "#t")
-    then eval true
-    else eval false
+evalList :: [AST] -> State Env AST
+evalList [] = undefined -- TODO - vyhodnoceni prazdneho listu je vzdy chyba
+evalList (a:as) = do
+  -- Ve vsech pripadech chceme vyhodnotit hlavu. Tim se umozni
+  -- napr. kod ((if x define lambda) y z), kde se vybere specialni forma
+  -- podle vyhodnoceni prvniho vyrazu.
+  x <- eval a
 
-eval (Define name body) = do
-  modify (\env -> (name, body):env)
-  return $ Atom "defined"
+  -- Dalsi vyhodnocovani ale uz velmi zalezi na typu hlavy
+  case x of
+    ASTNumber _ -> undefined -- cislo nemuze byt nikdy funkce, proto se jedna o chybu
+    ASTSymbol name ->
+      if isSpecialForm name
+      then evalSpecialForm name as
+      else undefined -- TODO - vyhodnotit jako normalni funkci
 
-eval (List (x:xs)) = do
+    ASTList ("lambda":(ASTList args):(ASTList body)) -> apply (Lambda args body) as
 
-  h <- eval x
-  evaled <- mapM eval xs
+    otherwise -> undefined -- TODO - chybova hlaska
 
-  case h of
-    (Lambda args body) -> do
-          -- TODO - check argument length with function param count
-          --   when (length args) /= (length xs) $ do
-          --     fail "argument counts don't match"
-          let functionEnv = zip args evaled
-          env <- get
 
-          return $ evalState (eval body) (functionEnv ++ env)
+  -- Muzou nastat pouze dva pripady u vyhodnocovani:
+  --  * bud se jedna o specialni formu, potom
 
-    (Atom name) ->
-      case lookup name primitives of
-        Nothing -> error $ "function " ++ name ++ " is undefined"
-        Just f -> f (xs !! 0) (xs !! 1)
+  undefined
 
-eval x = return x -- lambda se vyhodnoti sama na sebe
+apply ::
+
+-- eval :: AST -> State Env AST
+-- eval (Atom s) = do
+--   env <- get
+--   case lookup s env of
+--     Just x -> return x
+--     Nothing -> return $ Atom s
+
+-- eval (If cond true false) = do
+--   env <- get
+--   if evalState (eval cond) env == (Atom "#t")
+--     then eval true
+--     else eval false
+
+-- eval (Define name body) = do
+--   modify (\env -> (name, body):env)
+--   return $ Atom "defined"
+
+-- eval (List (x:xs)) = do
+
+--   h <- eval x
+--   evaled <- mapM eval xs
+
+--   case h of
+--     (Lambda args body) -> do
+--           -- TODO - check argument length with function param count
+--           --   when (length args) /= (length xs) $ do
+--           --     fail "argument counts don't match"
+--           let functionEnv = zip args evaled
+--           env <- get
+
+--           return $ evalState (eval body) (functionEnv ++ env)
+
+--     (Atom name) ->
+--       case lookup name primitives of
+--         Nothing -> error $ "function " ++ name ++ " is undefined"
+--         Just f -> f (xs !! 0) (xs !! 1)
+
+-- eval x = return x -- lambda se vyhodnoti sama na sebe
+
+
+-- -- Reprezentuje jeden prvek AST v Scheme. Cely zdrojovy kod
+-- -- je potom reprezentovan jako [AST].
+-- data Form = Define String AST
+--           | If AST AST AST
+--           | Let AST AST
+--           | Lambda Args AST
+--           | List [AST]
+--           | Number Int
+--           | Atom String
+--           deriving (Show, Eq)
+
+-- numberOp :: (Int -> Int -> AST) -> AST -> AST -> State Env AST
+-- numberOp f x y = do
+--   xx <- eval x
+--   yy <- eval y
+
+--   case (xx, yy) of
+--     (Number xv, Number yv) ->
+--       return $ f xv yv
+
+--     (xv, yv) ->
+--         error $ "evaluating non-numbers " ++ show xv ++ " and " ++ show yv
+
+
+-- numEq :: AST -> AST -> State Env AST
+-- numEq = numberOp (\x y ->
+--                         if x == y
+--                         then Atom "#t"
+--                         else Atom "#f")
+
+
+
+-- numPlus, numMinus, numMult :: AST -> AST -> State Env AST
+-- numPlus = numberOp (\x y -> Number $ x + y)
+-- numMinus = numberOp (\x y -> Number $ x - y)
+-- numMult = numberOp (\x y -> Number $ x * y)
+
+-- primitives :: [(String, AST -> AST -> State Env AST)]
+-- primitives = [
+--   ("+", numPlus),
+--   ("-", numMinus),
+--   ("*", numMult),
+--   ("=", numEq)]
+
+
+-- -- Testovaci implementace factorialu, ekvivalentni nasledujicimu kodu
+-- --
+-- -- (define factorial
+-- --           (lambda (n)
+-- --              (if (= n 0)
+-- --                1
+-- --                (* n (factorial (- n 1)))))
+-- --
+-- --
+-- -- TODO - tohle extrahovat jinam
+-- -- (factorial 5)
+-- -- ((lambda (x) (+ 1 x)) 3)
+-- fac :: AST
+-- fac = Lambda ["n"]
+--       (If (List [Atom "=", Atom "n", Number 0])
+--        (Number 1)
+--        (List [Atom "*", Atom "n",
+--               (List [Atom "factorial",
+--                      List [Atom "-", Atom "n", Number 1]])]))
