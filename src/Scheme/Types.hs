@@ -46,11 +46,17 @@ evalList (a:as) = do
 
   -- Dalsi vyhodnocovani ale uz velmi zalezi na typu hlavy
   case x of
-    ASTNumber _ -> undefined -- cislo nemuze byt nikdy funkce, proto se jedna o chybu
+    -- Cislo nemuze byt nikdy funkce, proto se jedna o chybu
+    ASTNumber _ -> undefined
+
+    -- Pokud byl symbol v puvodni hlave, a znaci uzivatelsky definovanou funkci,
+    -- bude v tuto chvili jiz nahrazeny za lambda funkci (jeho definici.) Pokud
+    -- ale i po vyhodnoceni mame porad symbol, muze se jednat jedine o specialni
+    -- formu, pro kterou musime vyhodnocovat argumenty zvlast.
     ASTSymbol name ->
       if isSpecialForm name
       then evalSpecialForm name as
-      else undefined -- TODO - vyhodnotit jako normalni funkci
+      else undefined -- TODO - chyba, nedefinovana funkce
 
     ASTList ("lambda":(ASTList args):(ASTList body)) -> apply (Lambda args body) as
 
