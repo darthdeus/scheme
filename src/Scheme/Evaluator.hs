@@ -92,7 +92,6 @@ evalList (a:as) = do
       then evalSpecialForm name as
       else evalBuiltin name as
 
-    -- TODO - fix args vs params
     ASTLambda params body -> apply (Lambda (map unwrapAtom params) body) as
 
     _ -> error $ "Evaluation error, unexpected value in evalList: " ++ show x
@@ -102,6 +101,25 @@ evalSpecialForm "define" [(ASTAtom name),value] = do
   env <- get
   put ((name, value):env)
   return $ ASTAtom "#t"
+
+evalSpecialForm "if" [condition,true,false] = do
+  c <- eval condition
+  if c == ASTAtom "#t"
+    then eval true
+    else eval false
+
+evalSpecialForm "let" [ASTList bindings, body] = do
+  b <- mapM evalBindings bindings
+
+  env <- get
+  return $ evalState (eval body) (b ++ env)
+
+evalBindings :: AST -> State Env (String, AST)
+evalBindings (ASTList [ASTAtom name, value]) = do
+  v <- eval value
+  return (name, v)
+
+evalBindings x = fail $ "Invalid binding format: " ++ show x
 
 unwrapAtom :: AST -> String
 unwrapAtom (ASTAtom name) = name
@@ -118,8 +136,6 @@ apply (Lambda params body) values = do
 
 isSpecialForm :: String -> Bool
 isSpecialForm "define" = True
-isSpecialForm "lambda" = True
-isSpecialForm "apply"  = True
 isSpecialForm "let"    = True
 isSpecialForm "if"     = True
 isSpecialForm _ = False
