@@ -7,7 +7,8 @@ import Scheme.Parser.Combinators
 
 -- Parser pro jeden prvek AST v Scheme.
 parseAST :: Parser AST
-parseAST = parseList <|>
+parseAST = parseLambda <|>
+           parseList <|>
            parseNumber <|>
            parseAtom
 
@@ -22,6 +23,22 @@ parseNumber = fmap ASTNumber number
 
 parseList :: Parser AST
 parseList = fmap ASTList $ bracket '(' ')' (sepby parseAST whitespace)
+
+parseLambda :: Parser AST
+parseLambda = do
+  values <- specialForm "lambda"
+
+  case values of
+    [ASTList args, body] ->
+      if all isAtom args
+        then return $ ASTLambda args body
+        else failed $
+             "Lambda arguments can be only atoms, found " ++ show args
+    _ -> failed $ "Unexpected lambda format, found: " ++ show values
+
+isAtom :: AST -> Bool
+isAtom (ASTAtom _) = True
+isAtom _ = False
 
 specialForm :: String -> Parser [AST]
 specialForm name = do

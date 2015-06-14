@@ -1,16 +1,16 @@
 module Scheme.Types where
 
-import Data.Functor.Identity
 import Control.Monad
 import Control.Monad.State
 
 type Env = [(String, AST)]
 
 type Name = String
-type Args = [String]
-type Body = [AST]
+type Args = [AST]
+type Body = AST
 
 data AST = ASTList [AST]
+         | ASTLambda Args Body
          | ASTNumber Int
          | ASTAtom String
          deriving (Show, Eq)
@@ -37,7 +37,7 @@ eval (ASTList list) = evalList list
 eval x = return x
 
 evalList :: [AST] -> State Env AST
-evalList [] = undefined -- TODO - vyhodnoceni prazdneho listu je vzdy chyba
+evalList [] = error "Empty list can't be evaluated as a function"
 evalList (a:as) = do
   -- Ve vsech pripadech chceme vyhodnotit hlavu. Tim se umozni
   -- napr. kod ((if x define lambda) y z), kde se vybere specialni forma
@@ -47,28 +47,39 @@ evalList (a:as) = do
   -- Dalsi vyhodnocovani ale uz velmi zalezi na typu hlavy
   case x of
     -- Cislo nemuze byt nikdy funkce, proto se jedna o chybu
-    ASTNumber _ -> undefined
+    ASTNumber _ -> error "Number can't be evaluated as a function"
 
     -- Pokud byl symbol v puvodni hlave, a znaci uzivatelsky definovanou funkci,
     -- bude v tuto chvili jiz nahrazeny za lambda funkci (jeho definici.) Pokud
     -- ale i po vyhodnoceni mame porad symbol, muze se jednat jedine o specialni
     -- formu, pro kterou musime vyhodnocovat argumenty zvlast.
-    ASTSymbol name ->
+    ASTAtom name ->
       if isSpecialForm name
       then evalSpecialForm name as
-      else undefined -- TODO - chyba, nedefinovana funkce
+      else error $ "Atom `" ++ name ++ "` is not a function (neither builtin nor user defined.)"
 
-    ASTList ("lambda":(ASTList args):(ASTList body)) -> apply (Lambda args body) as
+    ASTList [(ASTAtom "lambda"),(ASTList args),body] -> apply (Lambda args body) as
 
-    otherwise -> undefined -- TODO - chybova hlaska
+    _ -> error $ "Evaluation error, unexpected value in evalList: " ++ show x
 
+evalSpecialForm :: Name -> [AST] -> State Env AST
+evalSpecialForm = undefined
 
-  -- Muzou nastat pouze dva pripady u vyhodnocovani:
-  --  * bud se jedna o specialni formu, potom
+apply :: Lambda -> [AST] -> State Env AST
+apply (Lambda args body) values = do
+  params <- mapM eval values
 
   undefined
 
-apply ::
+
+isSpecialForm :: String -> Bool
+isSpecialForm "define" = True
+isSpecialForm "lambda" = True
+isSpecialForm "apply"  = True
+isSpecialForm "let"    = True
+isSpecialForm "if"     = True
+isSpecialForm _ = False
+
 
 -- eval :: AST -> State Env AST
 -- eval (Atom s) = do

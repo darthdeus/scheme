@@ -12,23 +12,14 @@ import Control.Monad
 data Parser a = Parser (String -> ParseResult a)
 type ParseResult a = Either String (a, String)
 
-runParser :: Parser a -> (String -> ParseResult a)
-runParser (Parser p) = p
-
-anyChar :: Parser Char
-anyChar = Parser (\s -> case s of
-                     "" -> Left "expected a character, empty string instead"
-                     (x:xs) -> Right (x, xs))
-
-failed :: String -> Parser a
-failed why = Parser (\_ -> Left why)
-
+-- TODO - rewrite using Monad instance
 instance Functor Parser where
   fmap f (Parser p) = Parser (\x -> do
                                  case p x of
                                    Left err -> Left err
-                                   Right (a,b) -> Right (f a, b))
+                                   Right (a, s) -> Right (f a, s))
 
+-- TODO - rewrite using Monad instance
 instance Applicative Parser where
   pure x = Parser (\s -> Right (x, s))
   (Parser f) <*> (Parser g) = Parser (\x -> do -- pozor, tento `do` je v Either monade
@@ -44,10 +35,13 @@ instance Monad Parser where
                                 q s)
 
 parse :: Parser a -> String -> ParseResult a
-parse (Parser p) = p
+parse (Parser p) s = p s
+
+failed :: String -> Parser a
+failed why = Parser (\_ -> Left why)
 
 instance MonadPlus Parser where
-  mzero = Parser (\_ -> Left "mzero: parsing failed")
+  mzero = failed "mzero: parsing failed"
   mplus p q = Parser (\x ->
                        case parse p x of
                          Right a -> Right a
@@ -60,6 +54,11 @@ instance MonadPlus Parser where
 run :: String -> Parser a -> ParseResult a
 run s (Parser f) = f s
 
+anyChar :: Parser Char
+anyChar = Parser (\s -> case s of
+                     "" -> Left "expected a character, empty string instead"
+                     (x:xs) -> Right (x, xs))
+
 satisfies :: (Char -> Bool) -> Parser Char
 satisfies p = do
   c <- anyChar
@@ -71,6 +70,8 @@ satisfies p = do
 char :: Char -> Parser Char
 char c = satisfies (c ==)
 
+
+-- High level parser combinators
 string :: String -> Parser String
 string "" = return ""
 string (x:xs) = char x >> string xs >> return (x:xs)
@@ -93,6 +94,7 @@ sepby1 p s = do
   as <- many $ s >> p
   return (a:as)
 
+-- TODO - pochopit :)
 chainl :: Parser a -> Parser (a -> a -> a) -> a -> Parser a
 chainl p op a = (p `chainl1` op) <|> return a
 
@@ -104,6 +106,7 @@ p `chainl1` op = do {a <- p; rest a}
                                 rest (f a b))
                             <|> return a
 
+-- Parsuje vyraz uzavorkovany zavorkami
 bracket :: Char -> Char -> Parser a -> Parser a
 bracket left right middle = do
   char left
