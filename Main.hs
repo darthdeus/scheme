@@ -29,7 +29,7 @@ main = do
         then interpretFile file verbose
         else putStrLn $ "File " ++ file ++ " doesn't exist."
 
-    _ -> putStrLn "Usage: lisp [ file [-v] | -i ]\n\n\t-i\tStarts REPL\n"
+    _ -> putStrLn "Usage: lisp ( file [-v] | -i [-v] )\n\n\t-i\tStarts the REPL.\n\t-v\tDisplays evaluation details.\n"
 
 interpretFile :: FilePath -> Bool -> IO ()
 interpretFile path verbose = do

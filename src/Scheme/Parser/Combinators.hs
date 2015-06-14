@@ -96,18 +96,6 @@ sepby1 p s = do
   as <- many $ s >> p
   return (a:as)
 
--- TODO - pochopit :)
-chainl :: Parser a -> Parser (a -> a -> a) -> a -> Parser a
-chainl p op a = (p `chainl1` op) <|> return a
-
-chainl1 :: Parser a -> Parser (a -> a -> a) -> Parser a
-p `chainl1` op = do {a <- p; rest a}
-                 where
-                   rest a = (do f <- op
-                                b <- p
-                                rest (f a b))
-                            <|> return a
-
 -- Parsuje vyraz uzavorkovany zavorkami
 bracket :: Char -> Char -> Parser a -> Parser a
 bracket left right middle = do
