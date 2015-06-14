@@ -17,10 +17,31 @@ parseAST = parseDefine <|>
 parseDefine = fmap Atom $ string "TODO-define"
 parseLambda = fmap Atom $ string "TODO-lambda"
 parseLet = fmap Atom $ string "TOOD-let"
-parseIf = fmap Atom $ string "TOOD-if"
+
+parseIf :: Parser AST
+parseIf = do
+  values <- specialForm "if"
+
+  case values of
+    [cond,true,false] ->
+      return $ If cond true false
+
+    _ -> failed
 
 whitespace :: Parser String
 whitespace = many $ oneOf " \n\t\r"
+
+specialForm :: String -> Parser [AST]
+specialForm name = do
+  (List values) <- parseList
+
+  case values of
+    ((Atom x):xs) -> do
+      if x == name
+        then return xs
+        else failed
+
+    _ -> failed
 
 parseAtom :: Parser AST
 parseAtom = fmap Atom $ many1 $ oneOf "abcdefghijklmnopqrstuvwxyz!@#$%^&*_+-=[]{}\\|';:\",./<>?"
