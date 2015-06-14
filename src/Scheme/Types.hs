@@ -6,14 +6,20 @@ import Control.Monad.State
 
 type Env = [(String, AST)]
 
--- (define factorial
---           (lambda (n)
---              (if (= n 0)
---                1
---                (* n (factorial (- n 1)))))
---
--- (factorial 5)
--- ((lambda (x) (+ 1 x)) 3)
+type Name = String
+type Args = [String]
+type Body = [AST]
+
+-- Reprezentuje jeden prvek AST v Scheme. Cely zdrojovy kod
+-- je potom reprezentovan jako [AST].
+data AST = Define String AST
+         | If AST AST AST
+         | Let AST AST
+         | Lambda Args AST
+         | List [AST]
+         | Number Int
+         | Atom String
+         deriving (Show, Eq)
 
 numberOp :: (Int -> Int -> AST) -> AST -> AST -> State Env AST
 numberOp f x y = do
@@ -31,8 +37,8 @@ numberOp f x y = do
 numEq :: AST -> AST -> State Env AST
 numEq = numberOp (\x y ->
                         if x == y
-                        then Symbol "#t"
-                        else Symbol "#f")
+                        then Atom "#t"
+                        else Atom "#f")
 
 
 
@@ -46,45 +52,45 @@ primitives = [
   ("+", numPlus),
   ("-", numMinus),
   ("*", numMult),
-  ("=", numEq)
-  ]
+  ("=", numEq)]
 
+
+-- Testovaci implementace factorialu, ekvivalentni nasledujicimu kodu
+--
+-- (define factorial
+--           (lambda (n)
+--              (if (= n 0)
+--                1
+--                (* n (factorial (- n 1)))))
+--
+--
+-- TODO - tohle extrahovat jinam
+-- (factorial 5)
+-- ((lambda (x) (+ 1 x)) 3)
 fac :: AST
 fac = Lambda ["n"]
-      (If (List [Symbol "=", Symbol "n", Number 0])
+      (If (List [Atom "=", Atom "n", Number 0])
        (Number 1)
-       (List [Symbol "*", Symbol "n",
-              (List [Symbol "factorial",
-                     List [Symbol "-", Symbol "n", Number 1]])]))
-
-type Name = String
-type Args = [String]
-type Body = [AST]
-
-data AST = Define String AST
-         | If AST AST AST
-         | Lambda Args AST
-         | List [AST]
-         | Number Int
-         | Symbol String
-         deriving (Show, Eq)
+       (List [Atom "*", Atom "n",
+              (List [Atom "factorial",
+                     List [Atom "-", Atom "n", Number 1]])]))
 
 eval :: AST -> State Env AST
-eval (Symbol s) = do
+eval (Atom s) = do
   env <- get
   case lookup s env of
     Just x -> return x
-    Nothing -> return $ Symbol s
+    Nothing -> return $ Atom s
 
 eval (If cond true false) = do
   env <- get
-  if evalState (eval cond) env == (Symbol "#t")
+  if evalState (eval cond) env == (Atom "#t")
     then eval true
     else eval false
 
 eval (Define name body) = do
   modify (\env -> (name, body):env)
-  return $ Symbol "defined"
+  return $ Atom "defined"
 
 eval (List (x:xs)) = do
 
@@ -101,7 +107,7 @@ eval (List (x:xs)) = do
 
           return $ evalState (eval body) (functionEnv ++ env)
 
-    (Symbol name) ->
+    (Atom name) ->
       case lookup name primitives of
         Nothing -> error $ "function " ++ name ++ " is undefined"
         Just f -> f (xs !! 0) (xs !! 1)
