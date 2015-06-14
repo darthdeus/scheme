@@ -5,39 +5,41 @@ module Scheme.Parser.Combinators where
 import Control.Applicative as A hiding (many, (<|>))
 import Control.Monad
 
-data Parser a = Parser (String -> [(a, String)])
+data Parser a = Parser (String -> ParseResult a)
+type ParseResult a = Either String [(a, String)]
 
-runParser :: Parser a -> (String -> [(a, String)])
+runParser :: Parser a -> (String -> ParseResult a)
 runParser (Parser p) = p
 
 anyChar :: Parser Char
 anyChar = Parser (\s -> case s of
-                     "" -> []
-                     (x:xs) -> [(x, xs)])
+                     "" -> Left "expected a character, empty string instead"
+                     (x:xs) -> Right [(x, xs)])
 
-failed :: Parser a
-failed = Parser (\_ -> [])
+failed :: String -> Parser a
+failed why = Parser (\_ -> Left why)
 
 instance Functor Parser where
   fmap f (Parser p) = Parser (\x -> do
-                                 (a, s) <- p x
-                                 [(f a, s)])
+                                 case p x of
+                                   Left err -> Left err
+                                   Right ok -> Right $ map (\(a,b) -> (f a, b)) ok)
 
 instance Applicative Parser where
-  pure x = Parser (\s -> [(x, s)])
-  (Parser f) <*> (Parser g) = Parser (\x -> do
-                                         (a, s) <- f x
-                                         (b, t) <- g s
-                                         return $ (a b, t))
+  pure x = Parser (\s -> Right [(x, s)])
+  (Parser f) <*> (Parser g) = Parser (\x -> do -- pozor, tento `do` je v Either monade
+                                         [(a, s)] <- f x
+                                         [(b, t)] <- g s
+                                         return $ [(a b, t)])
 
 instance Monad Parser where
   return = pure
-  (Parser p) >>= f = Parser (\x -> do
-                                (a, s) <- p x
+  (Parser p) >>= f = Parser (\x -> do -- pozor, tento `do` je v Either monade
+                                [(a, s)] <- p x
                                 let (Parser q) = f a
                                 q s)
 
-parse :: Parser a -> String -> [(a, String)]
+parse :: Parser a -> String -> ParseResult a
 parse (Parser p) = p
 
 instance MonadPlus Parser where
