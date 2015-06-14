@@ -1,19 +1,42 @@
 module Main where
 
-import System.IO
+import Data.List
+import System.Environment
+import System.Directory
+
+import Scheme.Printer
 import Scheme.Parser
 import Scheme.Evaluator
-
-repl :: IO ()
-repl = do
-    putStr "> "
-    hFlush stdout
-    input <- getLine
-    putStrLn $ eval input
-
-    main
+import Scheme.REPL
 
 main :: IO ()
 main = do
-    putStrLn ";; Scheme REPL"
-    repl
+  args <- getArgs
+
+  case args of
+    ["-i"] -> lispRepl False
+    ["-i", "-v"] -> lispRepl True
+
+    (file:rest) -> do
+      ok <- doesFileExist file
+
+      let verbose =
+            case rest of
+              ["-v"] -> True
+              _ -> False
+
+      if ok
+        then interpretFile file verbose
+        else putStrLn $ "File " ++ file ++ " doesn't exist."
+
+    _ -> putStrLn "Usage: lisp [ file [-v] | -i ]\n\n\t-i\tStarts REPL\n"
+
+interpretFile :: FilePath -> Bool -> IO ()
+interpretFile path verbose = do
+  content <- readFile path
+
+  let evaluated = evalSource $ parseLisp content
+
+  if verbose
+    then print evaluated
+    else putStrLn $ intercalate "\n" $ map printLisp $ evaluationResult evaluated

@@ -5,6 +5,9 @@ import Scheme.Types
 import Scheme.Parser.Combinators
 
 
+parseLisp :: String -> [AST]
+parseLisp s = run s $ many1 parseAST
+
 -- Parser pro jeden prvek AST v Scheme.
 parseAST :: Parser AST
 parseAST = parseLambda <|>
